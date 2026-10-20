@@ -2,5 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/actions-runner/_work/Simple-Payment-Minikube/Simple-Payment-Minikube" vcs="Git" />
   </component>
 </project>
