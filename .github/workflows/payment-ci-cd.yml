@@ -1,0 +1,154 @@
+name: Payment Services CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: payment-deployment
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    runs-on: [self-hosted, windows, x64]
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      processor: ${{ steps.filter.outputs.processor }}
+      wallet: ${{ steps.filter.outputs.wallet }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'Payment-API/**'
+              - 'pom.xml'
+            processor:
+              - 'Payment-Processor2/**'
+              - 'pom.xml'
+            wallet:
+              - 'Wallet-Service/**'
+              - 'pom.xml'
+
+  deploy-api:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api == 'true'
+    runs-on: [self-hosted, windows, x64]
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: Payment-API/pom.xml
+
+      - name: Build and test API
+        working-directory: Payment-API
+        run: |
+          .\mvnw.cmd -B clean package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and load API image
+        run: |
+          docker build -t "payment-api:$env:IMAGE_TAG" .\Payment-API
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          minikube image load "payment-api:$env:IMAGE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Deploy API
+        run: |
+          kubectl set image deployment/payment-api "payment-api=payment-api:$env:IMAGE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          kubectl rollout status deployment/payment-api --timeout=180s
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  deploy-processor:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.processor == 'true'
+    runs-on: [self-hosted, windows, x64]
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: Payment-Processor2/pom.xml
+
+      - name: Build and test Processor
+        working-directory: Payment-Processor2
+        run: |
+          .\mvnw.cmd -B clean package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and load Processor image
+        run: |
+          docker build -t "payment-processor:$env:IMAGE_TAG" .\Payment-Processor2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          minikube image load "payment-processor:$env:IMAGE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Deploy Processor
+        run: |
+          kubectl set image deployment/payment-processor "payment-processor=payment-processor:$env:IMAGE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          kubectl rollout status deployment/payment-processor --timeout=180s
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  deploy-wallet:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.wallet == 'true'
+    runs-on: [self-hosted, windows, x64]
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: Wallet-Service/pom.xml
+
+      - name: Build and test Wallet
+        working-directory: Wallet-Service
+        run: |
+          .\mvnw.cmd -B clean package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and load Wallet image
+        run: |
+          docker build -t "wallet-service:$env:IMAGE_TAG" .\Wallet-Service
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          minikube image load "wallet-service:$env:IMAGE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Deploy Wallet
+        run: |
+          kubectl set image deployment/wallet-service "wallet-service=wallet-service:$env:IMAGE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          kubectl rollout status deployment/wallet-service --timeout=180s
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
