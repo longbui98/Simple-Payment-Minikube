@@ -1,0 +1,8 @@
+com\example\wallet\dto\WalletResponse.class
+com\example\wallet\controller\WalletController.class
+com\example\wallet\repository\WalletRepository.class
+com\example\wallet\dto\WalletRequest.class
+com\example\wallet\dto\BalanceUpdateRequest.class
+com\example\wallet\service\WalletService.class
+com\example\wallet\data\Wallet.class
+com\example\wallet\WalletApplication.class

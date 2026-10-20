@@ -1,0 +1,12 @@
+com\example\processor\data\Payment.class
+com\example\processor\dto\PaymentResponseError.class
+com\example\processor\repository\PaymentRepository.class
+com\example\processor\data\BalanceUpdateRequest.class
+com\example\processor\dto\PaymentResponse.class
+com\example\processor\dto\WalletRequest.class
+com\example\processor\utils\ValidatePaymentRequest.class
+com\example\processor\controller\ProcessorController.class
+com\example\processor\dto\WalletResponse.class
+com\example\processor\TraceIdFilter.class
+com\example\processor\PaymentProcessorApplication.class
+com\example\processor\dto\PaymentRequest.class

@@ -1,0 +1,4 @@
+com\example\processor\demo\PaymentApiApplication.class
+com\example\processor\demo\PaymentApiApplication$PaymentRequest.class
+com\example\processor\demo\PaymentApiApplication$WalletRequest.class
+com\example\processor\demo\TraceIdFilter.class
