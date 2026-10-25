@@ -27,6 +27,14 @@ spec:
               value: "postgres"
             - name: DB_PASSWORD
               value: "postgres"
+            - name: SQS_ENDPOINT
+              value: "http://localstack:4566"
+            - name: SPRING_CLOUD_AWS_REGION_STATIC
+              value: "us-east-1"
+            - name: SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KEY
+              value: "test"
+            - name: SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY
+              value: "test"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -85,3 +93,11 @@ spec:
               value: "postgres"
             - name: SPRING_DATASOURCE_PASSWORD
               value: "postgres"
+            - name: SQS_ENDPOINT
+              value: "http://localstack:4566"
+            - name: SPRING_CLOUD_AWS_REGION_STATIC
+              value: "us-east-1"
+            - name: SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KEY
+              value: "test"
+            - name: SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY
+              value: "test"
