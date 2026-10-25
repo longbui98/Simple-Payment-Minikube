@@ -11,25 +11,10 @@ This repository is structured as a multi-service Java project with Docker and Ku
 
 ## Architecture
 
-```text
-Client
-  |
-  v
-Payment-API (port 8080)
-  |
-  v
-Payment-Processor2 (port 8080)
-  |        \
-  |         \-- calls wallet validation and balance updates
-  v
-Wallet-Service (port 8082)
-  |
-  v
-PostgreSQL (payment-database)
-  |
-  v
-LocalStack (SQS)
-```
+<img width="1584" height="1136" alt="image" src="https://github.com/user-attachments/assets/5afdd4b3-a021-47a2-b2eb-a0a79e51d0d5" />
+
+<img width="1108" height="678" alt="image" src="https://github.com/user-attachments/assets/a39c9122-eb37-4502-a848-804b84d84497" />
+
 
 ## Services
 
