@@ -22,11 +22,11 @@ spec:
             - name: SERVER_PORT
               value: "8080"
             - name: DB_URL
-              value: "jdbc:postgresql://payment-database:5432/postgres"
+              value: "jdbc:postgresql://cockroachdb-public:26257/paymentdb?sslmode=disable"
             - name: DB_USER
-              value: "postgres"
+              value: "root"
             - name: DB_PASSWORD
-              value: "postgres"
+              value: ""
             - name: SQS_ENDPOINT
               value: "http://localstack:4566"
             - name: SPRING_CLOUD_AWS_REGION_STATIC
@@ -87,12 +87,12 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8082"
-            - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://payment-database:5432/postgres"
-            - name: SPRING_DATASOURCE_USERNAME
-              value: "postgres"
-            - name: SPRING_DATASOURCE_PASSWORD
-              value: "postgres"
+            - name: DB_URL
+              value: "jdbc:postgresql://cockroachdb-public:26257/paymentdb?sslmode=disable"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: ""
             - name: SQS_ENDPOINT
               value: "http://localstack:4566"
             - name: SPRING_CLOUD_AWS_REGION_STATIC
