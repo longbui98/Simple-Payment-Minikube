@@ -118,7 +118,7 @@ public class PaymentService {
             payment.setStatus(status);
 
             repository.save(payment);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             log.error("Error while receiving message from SQS message {}", e.getMessage());
         }
     }

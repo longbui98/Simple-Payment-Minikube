@@ -4,6 +4,7 @@ import com.example.wallet.data.Wallet;
 import com.example.wallet.dto.BalanceUpdateRequest;
 import com.example.wallet.dto.WalletRequest;
 import com.example.wallet.dto.WalletResponse;
+import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.service.WalletService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,14 @@ public class WalletController {
 
     @PostMapping
     public ResponseEntity<WalletResponse> createWallet(@RequestBody WalletRequest request) {
-        Wallet wallet = walletService.createWallet(UUID.randomUUID().toString(), request.balance());
+        Wallet wallet = new Wallet("", new BigDecimal(0));
+        try {
+            walletService.getBalanceByUserId(request.userId());
+        } catch (WalletNotFoundException e) {
+            wallet = walletService.createWallet(UUID.randomUUID().toString(), request.balance());
+        } catch (Exception e) {
+           log.error("Error while create wallet with userId {} with message: {}", request.userId(), e.getMessage());
+        }
         return ResponseEntity.ok(new WalletResponse(wallet.getUserId(), wallet.getBalance()));
     }
 

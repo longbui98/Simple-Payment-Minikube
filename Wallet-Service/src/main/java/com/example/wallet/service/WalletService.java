@@ -3,6 +3,7 @@ package com.example.wallet.service;
 import com.example.wallet.data.Wallet;
 import com.example.wallet.dto.BalanceUpdateRequest;
 import com.example.wallet.dto.TransactionStatusEvent;
+import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.exception.WalletUpdateException;
 import com.example.wallet.repository.WalletRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -65,7 +66,7 @@ public class WalletService {
     public Wallet getBalanceByUserId(String userId) {
         String normalizedId = userId.trim().toLowerCase();
         return walletRepository.findById(normalizedId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found for user: " + normalizedId));
+                .orElseThrow(() -> new WalletNotFoundException("Wallet not found for user: " + normalizedId));
     }
 
     @Transactional
