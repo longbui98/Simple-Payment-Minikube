@@ -131,7 +131,7 @@ Endpoints:
 - Spring Boot
 - Spring Web
 - Spring Data JPA
-- PostgreSQL
+- CockroachDB
 - Docker
 - Kubernetes / Minikube
 - LocalStack
