@@ -12,12 +12,6 @@ A Java-based microservices demo for a simple payment workflow running on Minikub
 
 This repository is structured as a multi-service Java project with Docker and Kubernetes manifests for local cluster deployment.
 
-## Architecture
-
-<img width="1584" height="1136" alt="image" src="https://github.com/user-attachments/assets/5afdd4b3-a021-47a2-b2eb-a0a79e51d0d5" />
-
-<img width="1108" height="678" alt="image" src="https://github.com/user-attachments/assets/a39c9122-eb37-4502-a848-804b84d84497" />
-
 ## Payment flow (simple sequence)
 
 This is the easiest way to understand how a payment is processed in this system:
