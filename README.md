@@ -18,6 +18,47 @@ This repository is structured as a multi-service Java project with Docker and Ku
 
 <img width="1108" height="678" alt="image" src="https://github.com/user-attachments/assets/a39c9122-eb37-4502-a848-804b84d84497" />
 
+## Payment flow (simple sequence)
+
+This is the easiest way to understand how a payment is processed in this system:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant API as Payment API
+    participant Processor as Payment Processor
+    participant Wallet as Wallet Service
+    participant DB as PostgreSQL / CockroachDB
+    participant Queue as SQS / Redis / JobRunr
+    participant Result as Response to User
+
+    User->>API: POST /payments
+    API->>Processor: Forward payment request
+    Processor->>Processor: Validate payment data
+    Processor->>Wallet: Check sender and receiver wallet info
+    Wallet->>DB: Read user and balance data
+    DB-->>Wallet: Return current wallet state
+    Wallet->>Wallet: Validate enough funds and update balances
+    Wallet-->>Processor: Balance check successful
+    Processor->>DB: Save payment transaction record
+    DB-->>Processor: Transaction stored
+    Processor->>Queue: Publish async processing task
+    Queue-->>Processor: Background job scheduled
+    Processor-->>Result: Return success or failure response
+    Result-->>User: Payment result
+```
+
+In simple business terms:
+
+1. A user sends a payment request to the public API.
+2. The API passes the request to the payment processor.
+3. The processor validates the request and asks the wallet service to check balances.
+4. The wallet service verifies the sender has enough funds and updates balances.
+5. The payment record is stored in the database.
+6. Background jobs may continue processing tasks asynchronously.
+7. The user receives the final result.
+
 ## Services
 
 ### 1. Payment-API
