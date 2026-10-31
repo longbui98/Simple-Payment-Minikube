@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.util.Objects;
@@ -33,9 +34,10 @@ public class PaymentService {
         this.objectMapper = new ObjectMapper();
     }
 
+    @Transactional
     public Payment processPayment(PaymentRequest request, String traceId) throws Exception {
         ValidatePaymentRequest.validateRequest(request, traceId);
-        
+
         if (Objects.isNull(request.paymentId())) {
             validateWallet(request);
 
@@ -120,6 +122,7 @@ public class PaymentService {
             repository.save(payment);
         } catch (Exception e) {
             log.error("Error while receiving message from SQS message {}", e.getMessage());
+            throw new RuntimeException("Error while processing event from message: " + e.getMessage());
         }
     }
 }
