@@ -191,9 +191,9 @@ processor.url=http://payment-processor
 spring.application.name=payment-processor
 server.port=8080
 
-spring.datasource.url=${DB_URL:jdbc:postgresql://10.244.0.9:5432/postgres}
-spring.datasource.username=${POSTGRES_USER:postgres}
-spring.datasource.password=${POSTGRES_PASSWORD:postgres}
+spring.datasource.url=${DB_URL:jdbc:postgresql://cockroachdb-public:26257/paymentdb?sslmode=disable}
+spring.datasource.username=${DB_USER:root}
+spring.datasource.password=${DB_PASSWORD:}
 spring.datasource.driver-class-name=org.postgresql.Driver
 spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.hibernate.ddl-auto=update
@@ -203,12 +203,22 @@ wallet.url=http://wallet-service
 
 sqs.endpoint=${SQS_ENDPOINT:http://localhost:4566}
 sqs.queue.name=${SQS_QUEUE_NAME:transaction_wallet}
+sqs.queue.txc.failed.name=${SQS_TRANSACTION_FAILED_NAME:transaction_failed_wallet}
 
-spring.cloud.aws.region.static=us-east-1
-spring.cloud.aws.credentials.access-key=test
-spring.cloud.aws.credentials.secret-key=test
+spring.cloud.aws.region.static=${SPRING_CLOUD_AWS_REGION_STATIC:us-east-1}
+spring.cloud.aws.credentials.access-key=${SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KEY:test}
+spring.cloud.aws.credentials.secret-key=${SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY:test}
 spring.cloud.aws.sqs.endpoint=${sqs.endpoint}
 spring.cloud.aws.sqs.queue-not-found-strategy=CREATE
+spring.cloud.aws.sqs.listener.acknowledgement-mode=ON_SUCCESS
+
+spring.data.redis.host=${REDIS_HOST:dragonfly}
+spring.data.redis.port=${REDIS_PORT:6379}
+spring.data.redis.password=${REDIS_PASSWORD}
+
+jobrunr.background-job-server.enabled=true
+jobrunr.dashboard.enabled=true
+jobrunr.database.type=mem
 ```
 
 ### Wallet Service
@@ -218,14 +228,21 @@ spring.cloud.aws.sqs.queue-not-found-strategy=CREATE
 spring.application.name=wallet-service
 server.port=8082
 
-spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:postgresql://payment-db:5432/postgres}
-spring.datasource.username=${SPRING_DATASOURCE_USERNAME:postgres}
-spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:postgres}
+spring.datasource.url=${DB_URL:jdbc:postgresql://cockroachdb-public:26257/paymentdb?sslmode=disable}
+spring.datasource.username=${DB_USER:root}
+spring.datasource.password=${DB_PASSWORD:}
+spring.datasource.driver-class-name=org.postgresql.Driver
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
 
 sqs.endpoint=${SQS_ENDPOINT:http://localhost:4566}
 sqs.queue.name=${SQS_QUEUE_NAME:transaction_wallet}
+sqs.queue.txc.failed.name=${SQS_TRANSACTION_FAILED_NAME:transaction_failed_wallet}
+spring.cloud.aws.sqs.listener.acknowledgement-mode=ON_SUCCESS
+spring.cloud.aws.region.static=${SPRING_CLOUD_AWS_REGION_STATIC:us-east-1}
+spring.cloud.aws.credentials.access-key=${SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KEY:test}
+spring.cloud.aws.credentials.secret-key=${SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY:test}
 ```
 
 ## CI/CD
