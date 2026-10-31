@@ -1,11 +1,14 @@
 # Simple Payment Minikube
 
 A Java-based microservices demo for a simple payment workflow running on Minikube and Kubernetes. The project demonstrates a minimal distributed system with:
+
 - a public API entry point
 - a payment-processing service
 - a wallet service
-- PostgreSQL persistence
+- PostgreSQL/CockroachDB persistence
+- Redis-based background job processing
 - LocalStack/SQS for asynchronous messaging
+- observability tooling via ELK and Fluent Bit
 
 This repository is structured as a multi-service Java project with Docker and Kubernetes manifests for local cluster deployment.
 
@@ -14,7 +17,6 @@ This repository is structured as a multi-service Java project with Docker and Ku
 <img width="1584" height="1136" alt="image" src="https://github.com/user-attachments/assets/5afdd4b3-a021-47a2-b2eb-a0a79e51d0d5" />
 
 <img width="1108" height="678" alt="image" src="https://github.com/user-attachments/assets/a39c9122-eb37-4502-a848-804b84d84497" />
-
 
 ## Services
 
@@ -55,6 +57,7 @@ Responsibilities:
 - persists payment records
 - calls the wallet service to update balances
 - returns transaction results and error messages
+- integrates with asynchronous queue processing and scheduled background jobs
 
 Main class:
 - `Payment-Processor2/src/main/java/com/example/processor/PaymentProcessorApplication.java`
@@ -66,6 +69,7 @@ Important behavior:
 - uses `RestClient` to call the wallet service
 - persists payment data using JPA and PostgreSQL
 - integrates with SQS through Spring Cloud AWS
+- uses Redis and JobRunr for background job handling
 
 ### 3. Wallet-Service
 Owns wallet state and balance logic.
@@ -75,6 +79,7 @@ Responsibilities:
 - retrieves wallet balance by user
 - validates sender balance before transfer
 - updates sender and recipient balances atomically
+- processes wallet-related queued operations
 
 Main class:
 - `Wallet-Service/src/main/java/com/example/wallet/WalletApplication.java`
@@ -112,6 +117,9 @@ Endpoints:
 │   ├── pom.xml
 │   └── src/
 ├── k8s/
+│   ├── cluster-init.yaml
+│   ├── cockroachdb-statefulset.yaml
+│   ├── dragonfly.yaml
 │   ├── elk-stack.yaml
 │   ├── fluent-bit.yaml
 │   ├── localstack.yaml
@@ -121,31 +129,39 @@ Endpoints:
 ├── pom.xml
 ├── qodana.yaml
 ├── README.md
-└── .idea/
+├── .idea/
+└── .gitignore
 ```
 
 ## Technology stack
 
 - Java 21
 - Maven
-- Spring Boot
+- Spring Boot 3.x / 4.x
 - Spring Web
 - Spring Data JPA
+- PostgreSQL
 - CockroachDB
+- Redis
+- JobRunr
 - Docker
 - Kubernetes / Minikube
 - LocalStack
 - AWS SQS
+- ELK stack
+- Fluent Bit
 - GitHub Actions
-- Logback + Logstash encoder
 
 ## Kubernetes and infrastructure
 
 The project includes Kubernetes manifests under `k8s/`:
 
-- `payment-database.yaml`: PostgreSQL deployment and service
-- `payment-apps.yaml`: API, processor, and wallet deployments
-- `payment-services.yaml`: NodePort and ClusterIP services
+- `cluster-init.yaml`: cluster initialization configuration
+- `cockroachdb-statefulset.yaml`: CockroachDB stateful deployment
+- `dragonfly.yaml`: Dragonfly cache/queue service deployment
+- `payment-database.yaml`: PostgreSQL/CockroachDB and database-related resources
+- `payment-apps.yaml`: API, processor, and wallet service deployments
+- `payment-services.yaml`: NodePort and ClusterIP service definitions
 - `localstack.yaml`: local SQS mock service
 - `elk-stack.yaml`: Elastic stack for logs
 - `fluent-bit.yaml`: log shipping for container logs
@@ -214,15 +230,17 @@ sqs.queue.name=${SQS_QUEUE_NAME:transaction_wallet}
 
 ## CI/CD
 
-The repo includes a GitHub Actions workflow for service-aware deployment:
+The repository includes GitHub Actions workflows for automated validation and deployment:
 
 - `.github/workflows/payment-ci-cd.yml`
+- `.github/workflows/qodana_code_quality.yml`
 
 Behavior:
 - detects which service changed
 - builds the impacted service image
 - deploys the updated image to the matching Kubernetes deployment
-- handles API, processor, and wallet service workflows separately
+- handles API, processor, and wallet workflows separately
+- runs code quality analysis through Qodana
 
 ## Local development
 
@@ -260,10 +278,14 @@ minikube image load wallet-service:1.0
 ### Deploy to Kubernetes
 
 ```bash
+kubectl apply -f k8s/cluster-init.yaml
 kubectl apply -f k8s/payment-database.yaml
+kubectl apply -f k8s/dragonfly.yaml
 kubectl apply -f k8s/localstack.yaml
 kubectl apply -f k8s/payment-apps.yaml
 kubectl apply -f k8s/payment-services.yaml
+kubectl apply -f k8s/elk-stack.yaml
+kubectl apply -f k8s/fluent-bit.yaml
 ```
 
 ## Notes
@@ -271,7 +293,7 @@ kubectl apply -f k8s/payment-services.yaml
 - This project is designed as a demo or learning project rather than a production-grade financial platform.
 - The architecture intentionally keeps service boundaries simple for understanding and experimentation.
 - The repository includes both local development and Kubernetes deployment patterns.
-- Some configuration and module naming details may evolve; verify them before using a root multi-module build.
+- Configuration values and service names may evolve during local experimentation; verify them before production use.
 
 ## Useful commands
 
@@ -286,6 +308,12 @@ kubectl get svc
 kubectl logs deployment/payment-processor
 kubectl logs deployment/wallet-service
 kubectl logs deployment/payment-api
+
+# Check database state
+kubectl get pods -n default
+
+# Check LocalStack
+curl http://localhost:4566/_localstack/health
 ```
 
 ## License
