@@ -58,6 +58,7 @@ spec:
       containers:
       - name: kibana
         image: docker.elastic.co/kibana/kibana:7.17.9
+        imagePullPolicy: IfNotPresent
         env:
         - name: ELASTICSEARCH_HOSTS
           value: http://elasticsearch:9200

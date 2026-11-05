@@ -29,6 +29,7 @@ spec:
       containers:
         - name: dragonfly
           image: docker.dragonflydb.io/dragonflydb/dragonfly
+          imagePullPolicy: IfNotPresent
           ports:
             - name: redis
               containerPort: 6379
