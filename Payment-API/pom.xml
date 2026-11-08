@@ -9,7 +9,6 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>payment-api</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
     <name>payment-api</name>
     <description>Payment API Service</description>
 
