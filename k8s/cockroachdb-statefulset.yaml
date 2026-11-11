@@ -105,11 +105,11 @@ spec:
           # Note that requests and limits should have identical values.
           resources:
             requests:
-              cpu: "2"
-              memory: "4Gi"
+              cpu: "1"
+              memory: "1Gi"
             limits:
-              cpu: "2"
-              memory: "4Gi"
+              cpu: "1"
+              memory: "1Gi"
           ports:
             - containerPort: 26257
               name: grpc
@@ -163,10 +163,6 @@ spec:
       # No pre-stop hook is required, a SIGTERM plus some time is all that's
       # needed for graceful shutdown of a node.
       terminationGracePeriodSeconds: 60
-      volumes:
-        - name: datadir
-          persistentVolumeClaim:
-            claimName: datadir
   podManagementPolicy: Parallel
   updateStrategy:
     type: RollingUpdate

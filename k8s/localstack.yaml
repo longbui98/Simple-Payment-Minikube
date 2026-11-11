@@ -30,25 +30,3 @@ spec:
                 secretKeyRef:
                   name: localstack-auth
                   key: token
-          startupProbe:
-            httpGet:
-              path: /_localstack/health
-              port: 4566
-            failureThreshold: 30
-            periodSeconds: 10
-            initialDelaySeconds: 10
-            timeoutSeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /_localstack/health
-              port: 4566
-            failureThreshold: 3
-            timeoutSeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /_localstack/health
-              port: 4566
-            failureThreshold: 3
-            periodSeconds: 20
-            timeoutSeconds: 5

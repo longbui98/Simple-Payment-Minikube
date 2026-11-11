@@ -1,35 +1,43 @@
 package com.example.analytics.service;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.example.analytics.repository.AnalyticsRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
 public class AnalyticsService {
-    private final JdbcTemplate jdbcTemplate;
+    private final AnalyticsRepository repository;
 
-    public AnalyticsService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AnalyticsService(AnalyticsRepository repository) {
+        this.repository = repository;
     }
 
-    public Map<String, Object> getSummary() {
-        Long transactions = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM payment_transactions", Long.class);
-        Long processed = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM payment_transactions WHERE status = 'PROCESSED'",
-                Long.class);
-        Long failed = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM payment_transactions WHERE status = 'FAILED'",
-                Long.class);
-        Long walletEvents = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM wallet_events", Long.class);
+    public Map<String, Object> getPaymentSummary() {
+        Map<String, Object> summary = repository.getPaymentSummary();
 
-        return Map.of(
-                "totalTransactions", transactions == null ? 0L : transactions,
-                "processedTransactions", processed == null ? 0L : processed,
-                "failedTransactions", failed == null ? 0L : failed,
-                "walletEvents", walletEvents == null ? 0L : walletEvents
-        );
+        long total = ((Number) summary.get("total_transactions")).longValue();
+        long successful = ((Number) summary.get("successful_transactions")).longValue();
+
+        double successRate = total == 0
+                ? 0.0
+                : successful * 100.0 / total;
+
+        summary.put("success_rate", Math.round(successRate * 100.0) / 100.0);
+
+        return summary;
+    }
+
+    public List<Map<String, Object>> getPaymentTrends() {
+        return repository.getPaymentTrends();
+    }
+
+    public List<Map<String, Object>> getProcessingStatistics() {
+        return repository.getProcessingStatistics();
+    }
+
+    public List<Map<String, Object>> getWalletStatistics() {
+        return repository.getWalletStatistics();
     }
 }
