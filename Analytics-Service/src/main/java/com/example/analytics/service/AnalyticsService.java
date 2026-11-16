@@ -40,4 +40,8 @@ public class AnalyticsService {
     public List<Map<String, Object>> getWalletStatistics() {
         return repository.getWalletStatistics();
     }
+
+    public List<Map<String, Object>> getOUReports() {
+        return repository.getOUReports();
+    }
 }

@@ -20,7 +20,7 @@ spec:
             - containerPort: 4566
           env:
             - name: SERVICES
-              value: "sqs"
+              value: "sqs,s3"
             - name: DEBUG
               value: "1"
             - name: AWS_DEFAULT_REGION

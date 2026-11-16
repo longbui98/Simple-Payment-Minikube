@@ -36,4 +36,9 @@ public class AnalyticsController {
     public List<Map<String, Object>> walletStatistics() {
         return analyticsService.getWalletStatistics();
     }
+
+    @GetMapping("/ou-report")
+    public List<Map<String, Object>> getOUReports() {
+        return analyticsService.getOUReports();
+    }
 }

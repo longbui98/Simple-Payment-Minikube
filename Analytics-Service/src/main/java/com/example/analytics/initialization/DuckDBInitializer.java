@@ -69,5 +69,25 @@ public class DuckDBInitializer implements ApplicationRunner {
                 SELECT 1 FROM analytics_schema_version WHERE version = 1
             )
             """);
+
+        jdbcTemplate.execute("""
+            SET extension_directories = ['/data/.duckdb/extensions']
+        """);
+
+        jdbcTemplate.execute("INSTALL httpfs");
+        jdbcTemplate.execute("LOAD httpfs");
+
+        jdbcTemplate.execute("""
+            CREATE OR REPLACE SECRET localstack_s3 (
+                TYPE S3,
+                PROVIDER config,
+                KEY_ID 'test',
+                SECRET 'test',
+                REGION 'us-east-1',
+                ENDPOINT 'localstack:4566',
+                URL_STYLE 'path',
+                USE_SSL false
+            )
+        """);
     }
 }

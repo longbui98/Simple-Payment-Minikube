@@ -8,6 +8,7 @@ spec:
   resources:
     requests:
       storage: 2Gi
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -17,7 +18,6 @@ metadata:
     app: analytics-service
 spec:
   replicas: 1
-  # Avoid overlapping Pods opening the same DuckDB file during rollout.
   strategy:
     type: Recreate
   selector:
@@ -29,25 +29,34 @@ spec:
         app: analytics-service
     spec:
       terminationGracePeriodSeconds: 30
+
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
         fsGroupChangePolicy: OnRootMismatch
+
       containers:
         - name: analytics-service
           image: analytics-service:1.0
           imagePullPolicy: IfNotPresent
+
           ports:
             - name: http
               containerPort: 8083
               protocol: TCP
+
           env:
             - name: SERVER_PORT
               value: "8083"
+
             - name: DUCKDB_PATH
               value: /data/analytics.duckdb
+
+            - name: HOME
+              value: /data
+
           resources:
             requests:
               cpu: 250m
@@ -55,12 +64,14 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+
           startupProbe:
             httpGet:
               path: /actuator/health
               port: http
             periodSeconds: 5
             failureThreshold: 30
+
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -68,6 +79,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
+
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
@@ -75,13 +87,16 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
+
           volumeMounts:
             - name: duckdb-data
               mountPath: /data
+
       volumes:
         - name: duckdb-data
           persistentVolumeClaim:
             claimName: analytics-duckdb-pvc
+
 ---
 apiVersion: v1
 kind: Service

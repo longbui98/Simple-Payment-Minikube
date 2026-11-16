@@ -91,4 +91,12 @@ public class AnalyticsRepository
             LIMIT 20
             """);
     }
+
+    public List<Map<String, Object>> getOUReports() {
+        return jdbcTemplate.queryForList(
+                """
+                            SELECT * FROM 's3://my-s3files-bucket/ou.csv'
+                        """
+        );
+    }
 }
