@@ -10,7 +10,7 @@ The codebase now includes:
 - Payment-Processor2: business logic for processing payments and validating wallet balances
 - Wallet-Service: wallet creation, lookup, validation, and balance updates
 - Analytics-Service: DuckDB-backed analytics API for transaction insights
-- PostgreSQL/CockroachDB for transactional data
+- CockroachDB for transactional data
 - Redis / Dragonfly for rate limiting and background processing
 - LocalStack for AWS-compatible SQS emulation
 - ELK + Fluent Bit for observability
@@ -21,26 +21,55 @@ sequenceDiagram
     actor Client
     participant API as Payment-API
     participant Processor as Payment-Processor2
-    participant Wallet as Wallet-Service
-    participant DB as PostgreSQL / CockroachDB
     participant Redis as Redis / Dragonfly
+    participant Wallet as Wallet-Service
+    participant DB as CockroachDB
     participant SQS as LocalStack SQS
     participant Analytics as Analytics-Service
+    participant DuckDB
 
     Client->>API: POST /payments
-    API->>Processor: Forward payment request
-    Processor->>Redis: Check throttle/rate limit for user
-    Processor->>Wallet: Validate wallet existence and balance
-    Wallet->>DB: Read wallet data
-    DB-->>Wallet: Return current wallet state
-    Wallet-->>Processor: Validation result
-    Processor->>DB: Save payment transaction
-    Processor->>SQS: Emit transaction events
-    Processor-->>API: Payment result
-    API-->>Client: Final response
+    API->>Processor: POST /process (forward trace ID)
+    Processor->>Redis: Check sender rate limit
 
-    Analytics->>DB: Read transaction metrics
-    Analytics-->>Client: GET /api/analytics/* summaries
+    alt Rate limit exceeded
+        Processor-->>API: Payment error
+        API-->>Client: Payment rejected
+    else Within rate limit
+        Processor->>Wallet: Validate sender, recipient, and balance
+        Wallet->>DB: Read wallet records
+        DB-->>Wallet: Wallet data
+        Wallet-->>Processor: Validation result
+
+        alt Wallet validation fails
+            Processor-->>API: Payment error
+            API-->>Client: Payment failed
+        else Wallets are valid
+            Processor->>DB: Save payment as PROCESSING
+            DB-->>Processor: Saved payment
+            Processor->>Wallet: Update sender and recipient balances
+            Wallet->>DB: Debit sender and credit recipient
+            DB-->>Wallet: Updated balances
+            Wallet-->>Processor: Balance update result
+            Processor-->>API: Payment response
+            API-->>Client: Payment result
+        end
+    end
+
+    opt Failed transaction retry
+        Processor->>SQS: Queue failed-transaction retry
+        SQS->>Wallet: Deliver retry event
+        Wallet->>DB: Retry balance update and record status
+        DB-->>Wallet: Update result
+        Wallet->>SQS: Publish transaction status
+        SQS->>Processor: Deliver status event
+        Processor->>DB: Update payment status
+    end
+
+    Client->>Analytics: GET /api/analytics/*
+    Analytics->>DuckDB: Query analytics data
+    DuckDB-->>Analytics: Aggregated results
+    Analytics-->>Client: Analytics response
 ```
 
 ## Services
