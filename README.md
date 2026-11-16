@@ -1,61 +1,52 @@
 # Simple Payment Minikube
 
-A Java-based microservices demo for a simple payment workflow running on Minikube and Kubernetes. The project demonstrates a minimal distributed system with:
+A Java-based microservices demo for a simple payment workflow running on Minikube and Kubernetes. The repository currently implements a small distributed payment platform made up of four Spring Boot services and supporting infrastructure for local development and Kubernetes deployment.
 
-- a public API entry point
-- a payment-processing service
-- a wallet service
-- PostgreSQL/CockroachDB persistence
-- Redis-based background job processing
-- LocalStack/SQS for asynchronous messaging
-- observability tooling via ELK and Fluent Bit
+## Current architecture
 
-This repository is structured as a multi-service Java project with Docker and Kubernetes manifests for local cluster deployment.
+The codebase now includes:
 
-## Payment flow (simple sequence)
-
-This is the easiest way to understand how a payment is processed in this system:
+- Payment-API: public entry point for client requests
+- Payment-Processor2: business logic for processing payments and validating wallet balances
+- Wallet-Service: wallet creation, lookup, validation, and balance updates
+- Analytics-Service: DuckDB-backed analytics API for transaction insights
+- PostgreSQL/CockroachDB for transactional data
+- Redis / Dragonfly for rate limiting and background processing
+- LocalStack for AWS-compatible SQS emulation
+- ELK + Fluent Bit for observability
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User
-    participant API as Payment API
-    participant Processor as Payment Processor
-    participant Wallet as Wallet Service
+    actor Client
+    participant API as Payment-API
+    participant Processor as Payment-Processor2
+    participant Wallet as Wallet-Service
     participant DB as PostgreSQL / CockroachDB
-    participant Queue as SQS / Redis / JobRunr
-    participant Result as Response to User
+    participant Redis as Redis / Dragonfly
+    participant SQS as LocalStack SQS
+    participant Analytics as Analytics-Service
 
-    User->>API: POST /payments
+    Client->>API: POST /payments
     API->>Processor: Forward payment request
-    Processor->>Processor: Validate payment data
-    Processor->>Wallet: Check sender and receiver wallet info
-    Wallet->>DB: Read user and balance data
+    Processor->>Redis: Check throttle/rate limit for user
+    Processor->>Wallet: Validate wallet existence and balance
+    Wallet->>DB: Read wallet data
     DB-->>Wallet: Return current wallet state
-    Wallet->>Wallet: Validate enough funds and update balances
-    Wallet-->>Processor: Balance check successful
-    Processor->>DB: Save payment transaction record
-    DB-->>Processor: Transaction stored
-    Processor->>Queue: Publish async processing task
-    Queue-->>Processor: Background job scheduled
-    Processor-->>Result: Return success or failure response
-    Result-->>User: Payment result
+    Wallet-->>Processor: Validation result
+    Processor->>DB: Save payment transaction
+    Processor->>SQS: Emit transaction events
+    Processor-->>API: Payment result
+    API-->>Client: Final response
+
+    Analytics->>DB: Read transaction metrics
+    Analytics-->>Client: GET /api/analytics/* summaries
 ```
-
-In simple business terms:
-
-1. A user sends a payment request to the public API.
-2. The API passes the request to the payment processor.
-3. The processor validates the request and asks the wallet service to check balances.
-4. The wallet service verifies the sender has enough funds and updates balances.
-5. The payment record is stored in the database.
-6. Background jobs may continue processing tasks asynchronously.
-7. The user receives the final result.
 
 ## Services
 
 ### 1. Payment-API
+
 Entry point for client requests.
 
 Responsibilities:
@@ -71,7 +62,7 @@ Endpoints:
 - `POST /payments`
 - `POST /wallets`
 
-Example payment request:
+Example request:
 
 ```json
 {
@@ -84,15 +75,16 @@ Example payment request:
 ```
 
 ### 2. Payment-Processor2
+
 Handles the core payment workflow.
 
 Responsibilities:
 - validates payment requests
-- checks wallet balance and account existence
-- persists payment records
-- calls the wallet service to update balances
-- returns transaction results and error messages
-- integrates with asynchronous queue processing and scheduled background jobs
+- applies request throttling with Redis
+- checks sender/receiver wallet status
+- persists transaction records to PostgreSQL
+- emits SQS events for downstream processing
+- integrates with JobRunr/Redis-backed background work
 
 Main class:
 - `Payment-Processor2/src/main/java/com/example/processor/PaymentProcessorApplication.java`
@@ -100,21 +92,23 @@ Main class:
 Key controller:
 - `Payment-Processor2/src/main/java/com/example/processor/controller/ProcessorController.java`
 
-Important behavior:
+Key behavior:
 - uses `RestClient` to call the wallet service
-- persists payment data using JPA and PostgreSQL
-- integrates with SQS through Spring Cloud AWS
-- uses Redis and JobRunr for background job handling
+- enforces a max-request-per-user threshold in a short sliding window
+- stores payment data via Spring Data JPA
+- configures AWS SQS via Spring Cloud AWS
+- uses Redis and JobRunr for background processing workflows
 
 ### 3. Wallet-Service
+
 Owns wallet state and balance logic.
 
 Responsibilities:
 - creates wallet records
-- retrieves wallet balance by user
-- validates sender balance before transfer
-- updates sender and recipient balances atomically
-- processes wallet-related queued operations
+- fetches wallet balance by user
+- validates whether the sender has enough funds
+- updates sender and recipient wallet balances
+- tracks transaction events
 
 Main class:
 - `Wallet-Service/src/main/java/com/example/wallet/WalletApplication.java`
@@ -131,6 +125,27 @@ Endpoints:
 - `GET /wallets/validate`
 - `POST /wallets/update-balance`
 
+### 4. Analytics-Service
+
+Read-optimized analytics layer for payment activity.
+
+Responsibilities:
+- ingests payment and wallet events
+- stores analytics data in DuckDB
+- exposes aggregated payment and processing metrics
+
+Main class:
+- `Analytics-Service/src/main/java/com/example/analytics/AnalyticsApplication.java`
+
+Controller:
+- `Analytics-Service/src/main/java/com/example/analytics/controller/AnalyticsController.java`
+
+Endpoints:
+- `GET /api/analytics/payments/summary`
+- `GET /api/analytics/payments/trends`
+- `GET /api/analytics/processing`
+- `GET /api/analytics/wallets`
+
 ## Repository structure
 
 ```text
@@ -139,6 +154,10 @@ Endpoints:
 │   └── workflows/
 │       ├── payment-ci-cd.yml
 │       └── qodana_code_quality.yml
+├── Analytics-Service/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
 ├── Payment-API/
 │   ├── Dockerfile
 │   ├── pom.xml
@@ -152,6 +171,7 @@ Endpoints:
 │   ├── pom.xml
 │   └── src/
 ├── k8s/
+│   ├── analytics-services.yaml
 │   ├── cluster-init.yaml
 │   ├── cockroachdb-statefulset.yaml
 │   ├── dragonfly.yaml
@@ -177,7 +197,8 @@ Endpoints:
 - Spring Data JPA
 - PostgreSQL
 - CockroachDB
-- Redis
+- DuckDB
+- Redis / Dragonfly
 - JobRunr
 - Docker
 - Kubernetes / Minikube
@@ -186,27 +207,6 @@ Endpoints:
 - ELK stack
 - Fluent Bit
 - GitHub Actions
-
-## Kubernetes and infrastructure
-
-The project includes Kubernetes manifests under `k8s/`:
-
-- `cluster-init.yaml`: cluster initialization configuration
-- `cockroachdb-statefulset.yaml`: CockroachDB stateful deployment
-- `dragonfly.yaml`: Dragonfly cache/queue service deployment
-- `payment-database.yaml`: PostgreSQL/CockroachDB and database-related resources
-- `payment-apps.yaml`: API, processor, and wallet service deployments
-- `payment-services.yaml`: NodePort and ClusterIP service definitions
-- `localstack.yaml`: local SQS mock service
-- `elk-stack.yaml`: Elastic stack for logs
-- `fluent-bit.yaml`: log shipping for container logs
-
-Service exposure:
-- `payment-api` is exposed via NodePort on `30080`
-- `payment-processor` is exposed internally via ClusterIP
-- `wallet-service` is exposed internally via ClusterIP
-- `payment-database` is exposed internally on port `5432`
-- `localstack` is exposed internally on port `4566`
 
 ## Configuration
 
@@ -280,6 +280,51 @@ spring.cloud.aws.credentials.access-key=${SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KE
 spring.cloud.aws.credentials.secret-key=${SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY:test}
 ```
 
+### Analytics Service
+`Analytics-Service/src/main/resources/application.properties`
+
+```properties
+spring.application.name=analytics-service
+server.port=${SERVER_PORT:8083}
+
+spring.datasource.url=jdbc:duckdb:${DUCKDB_PATH:/data/analytics.duckdb};threads=2;memory_limit=1GB
+spring.datasource.driver-class-name=org.duckdb.DuckDBDriver
+spring.datasource.hikari.maximum-pool-size=4
+spring.datasource.hikari.minimum-idle=1
+spring.datasource.hikari.connection-timeout=10000
+
+spring.sql.init.mode=never
+
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.probes.enabled=true
+management.endpoint.health.show-details=never
+management.health.livenessstate.enabled=true
+management.health.readinessstate.enabled=true
+```
+
+## Kubernetes and infrastructure
+
+The project includes Kubernetes manifests under `k8s/`:
+
+- `cluster-init.yaml`: cluster initialization
+- `cockroachdb-statefulset.yaml`: CockroachDB stateful deployment
+- `dragonfly.yaml`: Redis-compatible cache and queue service
+- `localstack.yaml`: SQS mock service for local AWS-compatible events
+- `payment-database.yaml`: database-related resources
+- `payment-apps.yaml`: API, processor, wallet, and analytics service deployments
+- `payment-services.yaml`: service definitions
+- `elk-stack.yaml`: Elastic stack deployment
+- `fluent-bit.yaml`: log shipping configuration
+- `analytics-services.yaml`: analytics service configuration and deployment wiring
+
+Service exposure:
+- `payment-api` is exposed via NodePort on `30080`
+- `payment-processor` is exposed internally via ClusterIP
+- `wallet-service` is exposed internally via ClusterIP
+- `analytics-service` is exposed internally via ClusterIP
+- `payment-database` is exposed internally on port `5432`
+- `localstack` is exposed internally on port `4566`
+
 ## CI/CD
 
 The repository includes GitHub Actions workflows for automated validation and deployment:
@@ -291,8 +336,8 @@ Behavior:
 - detects which service changed
 - builds the impacted service image
 - deploys the updated image to the matching Kubernetes deployment
-- handles API, processor, and wallet workflows separately
-- runs code quality analysis through Qodana
+- handles API, processor, wallet, and analytics workflows separately
+- runs code quality analysis via Qodana
 
 ## Local development
 
@@ -309,6 +354,7 @@ Behavior:
 cd Payment-API && mvn clean package
 cd ../Payment-Processor2 && mvn clean package
 cd ../Wallet-Service && mvn clean package
+cd ../Analytics-Service && mvn clean package
 ```
 
 ### Build Docker images
@@ -317,6 +363,7 @@ cd ../Wallet-Service && mvn clean package
 docker build -t payment-api:1.0 ./Payment-API
 docker build -t payment-processor:1.0 ./Payment-Processor2
 docker build -t wallet-service:1.0 ./Wallet-Service
+docker build -t analytics-service:1.0 ./Analytics-Service
 ```
 
 ### Load images to Minikube
@@ -325,6 +372,7 @@ docker build -t wallet-service:1.0 ./Wallet-Service
 minikube image load payment-api:1.0
 minikube image load payment-processor:1.0
 minikube image load wallet-service:1.0
+minikube image load analytics-service:1.0
 ```
 
 ### Deploy to Kubernetes
@@ -336,16 +384,10 @@ kubectl apply -f k8s/dragonfly.yaml
 kubectl apply -f k8s/localstack.yaml
 kubectl apply -f k8s/payment-apps.yaml
 kubectl apply -f k8s/payment-services.yaml
+kubectl apply -f k8s/analytics-services.yaml
 kubectl apply -f k8s/elk-stack.yaml
 kubectl apply -f k8s/fluent-bit.yaml
 ```
-
-## Notes
-
-- This project is designed as a demo or learning project rather than a production-grade financial platform.
-- The architecture intentionally keeps service boundaries simple for understanding and experimentation.
-- The repository includes both local development and Kubernetes deployment patterns.
-- Configuration values and service names may evolve during local experimentation; verify them before production use.
 
 ## Useful commands
 
@@ -360,13 +402,18 @@ kubectl get svc
 kubectl logs deployment/payment-processor
 kubectl logs deployment/wallet-service
 kubectl logs deployment/payment-api
-
-# Check database state
-kubectl get pods -n default
+kubectl logs deployment/analytics-service
 
 # Check LocalStack
 curl http://localhost:4566/_localstack/health
 ```
+
+## Notes
+
+- This project is designed as a demo or learning project rather than a production-grade financial platform.
+- The architecture intentionally keeps service boundaries simple for understanding and experimentation.
+- The repository includes both local development and Kubernetes deployment patterns.
+- Configuration values and service names may evolve during local experimentation; verify them before production use.
 
 ## License
 
