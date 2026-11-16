@@ -195,7 +195,6 @@ Endpoints:
 - Spring Boot 3.x / 4.x
 - Spring Web
 - Spring Data JPA
-- PostgreSQL
 - CockroachDB
 - DuckDB
 - Redis / Dragonfly
